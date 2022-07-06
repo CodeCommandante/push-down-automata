@@ -1,0 +1,244 @@
+\documentclass[12pt]{article}                                              
+\input{Exam_2_JimLeon.sty}
+\usepackage[export]{adjustbox}
+\usepackage{float}
+\usepackage{wrapfig}
+
+
+\title{CSC445/545 - Exam \#2}
+\author{Jim Leon}
+
+
+\begin{document}
+\maketitle
+Due:  Apr 12, 2021 12am MST.
+% Pre-problem text.  The preface to the homework.  Comments which apply to the homework overall.
+
+%%\section{} %%  This will generate a numbered problem header, but you know this now.
+
+\section{Program Description}
+%This is the problem statement.
+\paragraph{}
+This program takes a file describing a Deterministic Finite Automata (DFA) or Deterministic 
+Pushdown Automata (DPDA) and allows the user to check strings against it.  If the string is or 
+isn't a part of the langauge on the machine, $L(M)$, the program will notify the user, 
+respectively.  This program is run at the command line (terminal), and requires three arguments:  
+the \textbf(main.py) executable, a flag \textbf(-F) or \textbf(-P) indicating what type of machine it is, 
+and the file describing the machine.  To exit the program, the user can enter the string 'quit'.
+
+\paragraph{}
+This program requires Python3 or better be installed on your machine.  The program was developed 
+on a Linux machine - running directly in a Windows terminal may require additional packages 
+or set-up.
+
+\section{Example of running the application}
+\paragraph{}
+To start up the application, the following must be provided at the command line (terminal):
+
+\begin{verbatim}
+$ ./main.py [-F, -P] machineFile
+\end{verbatim}
+
+\paragraph{}
+Once the application fires up, you will see the following message:
+
+\begin{verbatim}
+Enter strings to check if they are in the language on the machine, L(M).
+When you are finished, enter 'quit'
+    
+\end{verbatim}
+
+\paragraph{}
+From here the user can start entering strings - including the 'empty' string, which is the 
+result of hitting the Enter key.  If the string (word) is in $L(M)$, you will be notified 
+with the following message:
+
+\begin{verbatim}
+    00001 is in the language!
+\end{verbatim}
+
+...where, here, 00001 is a word in the language.  If a word is not in the language, however,
+the terminal will notify:
+
+\begin{verbatim}
+    01010 is not in the language!
+\end{verbatim}
+
+When the user is ready to quit the application, they can enter the word 'quit'.  The terminal 
+will notify and exit as follows:
+
+\begin{verbatim}
+    quit
+    Goodbye!
+$     
+\end{verbatim}
+
+\subsection{Structure of the Machine-description File}
+\paragraph{}
+The user must create a file that contains the description of the machine they wish to test 
+with the application.  If the machine is a Finite Automata, it must contain three sets of 
+information: the transitions on the machine, the starting state name, and a list of the final 
+states.  Here is an example of a machine file describing $L = {a^nb: n >= 0}$:
+
+\begin{verbatim}
+    q0, a -> q0
+    q0, b -> q1
+    q1, a -> q2
+    q1, b -> q2
+    q2, a -> q2
+    q2, b -> q2
+    q0
+    q1
+\end{verbatim}
+
+\paragraph{}
+The first six lines are the transition functions, the seventh line is the starting state, and 
+the last line is the final state of this machine.  In cases where your machine has several 
+final states, you would list them as comma-separated values on the same line.
+
+\paragraph{}
+Here is an example of a Pushdown Automata machine description file:
+
+\begin{verbatim}
+    q0, a, 0 -> q1, 1q0, a, 0 -> q1, 10
+    q1, a, 1 -> q1, 11
+    q1, b, 1 -> q2,
+    q2, b, 1 -> q2,
+    q2,  , 0 -> q0,
+    q0
+    0
+    q0
+    0
+    q0
+\end{verbatim}
+
+\paragraph{}
+This machine describes $L = {a^nb^n, n >= 0}$.  The first five lines are the transition 
+functions, the sixth line is the starting state name, the seventh line the starting symbol on 
+the stack, and the last line the final state name.  Again, for multiple final states, you 
+would separate the respective final states by commas.
+
+\paragraph{}
+Notice for the PDA that if you have transitions on empty strings '', you can simply leave out 
+a character altogether (or insert a Space).  However, the comma is still required for proper 
+parsing of the file.  In the Finite Automata machine descriptions you may also use empty 
+('lambda') transitions using a similar rule.
+
+\section{Code Structure and Primary Functions}
+\paragraph{}
+The program relies on two constructed classes, \textit{FiniteAutomata} and \textit{PushdownAutomata}, 
+and one user interface set of functions as part of the \textit{ui.py} file.  
+The \textit{ui.py} file methods do things like parsing the machine-description file and 'cleaning
+up' the input.  It also handles the basic interaction between the user and the terminal.
+
+\paragraph{}
+From an end user's perspective the main program runs through the following
+procedures/functions:
+
+\begin{lstlisting}
+import machine
+import argparse
+import ui
+
+def main():
+    if not args.FA and not args.PDA:
+        print('Program requires three arguments to run')
+        print('         ./main.py [-F,-P] [file]')
+    elif args.FA:
+        params = ui.fileParse(str(args.Machine),'f')
+        ui.runNAProgram(params)
+        print('Goodbye!')
+    elif args.PDA:
+        params = ui.fileParse(str(args.Machine),'p')
+        ui.runPDAProgram(params)
+        print('Goodbye!')
+    return 0
+
+main()
+\end{lstlisting}
+
+\paragraph{}
+This excludes the \textit{argparse} functions needed for command line arguments;
+however, the above code is essentially all the program requires.  The
+\textit{ui.py} file contains the three functions, \textit{fileParse()}, \textit{runNAProgram()}, 
+and \textit{runPDAProgram()}.
+
+\paragraph{}
+Listed below are those three functions.  As you can see, they invoke the \textit{FiniteAutomata} 
+and \textit{PushdownAutomata} class objects, manipulate them, and run the program loop.  Once 
+the loop is complete, control is handed back to the \textit{main()} function, and the 
+program is ended.
+
+\begin{lstlisting}
+def fileParse(fileName: str, machType: str) -> list:
+    fin = open(fileName, 'r')
+    params = []
+    if machType == 'f':
+        fileRead = fin.readlines()
+        transGraph = []
+        if len(fileRead) < 3:
+            raise Exception(InputExceptionMessage)
+        for t in range(len(fileRead) - 2):
+            transition = fileRead[t].strip()
+            transGraph.append(buildTransFA(transition))
+        params.append(transGraph)
+        params.append(fileRead[len(fileRead)-2].strip())
+        params.append(buildFinals(fileRead[len(fileRead)-1]))
+    elif machType == 'p':
+        fileRead = fin.readlines()
+        transGraph = []
+        if len(fileRead) < 4:
+            raise Exception(InputExceptionMessage)
+        for t in range(len(fileRead) - 3):
+            transition = fileRead[t].strip()
+            transGraph.append(buildTransPDA(transition))
+        params.append(transGraph)
+        params.append(fileRead[len(fileRead)-3].strip())
+        params.append(fileRead[len(fileRead)-2].strip())
+        params.append(buildFinals(fileRead[len(fileRead)-1]))
+    fin.close()
+    return params
+
+def runNAProgram(params: list):
+    print('Enter strings to check if they are in the language on the machine, L(M).')
+    print('When you are finished, enter \'quit\'')
+    M = machine.FiniteAutomata(params[0],params[1],params[2])
+    userIn = input()
+    while not userIn == 'quit':
+        if M.run(userIn):
+            print(userIn,'is in the language!')
+        else:
+            print(userIn,'is not in the language!')
+        userIn = input()
+    return 
+
+def runPDAProgram(params: list):
+    print('Enter strings to check if they are in the language on the machine, L(M).')
+    print('When you are finished, enter \'quit\'')
+    M = machine.PushdownAutomata(params[0],params[1],params[2],params[3])
+    userIn = input()
+    while not userIn == 'quit':
+        if M.run(userIn):
+            print(userIn,'is in the language!')
+        else:
+            print(userIn,'is not in the language!')
+        userIn = input()
+    return
+\end{lstlisting}
+
+\section{Program Limitations, Bugs, and To-Do's}
+\paragraph{}
+The biggest limitation to this application is it's deterministic nature.  Building nondeterministic 
+machines is not possible based on the basic FA and PDA model, because the computer cannot 
+accurately "guess" which move to take to guarantee word acceptance.  Therefore, although the 
+user may certainly pass in any number of FA or PDA machine descriptions they choose, there is absolutely 
+no guarantee that this application will be able to interpret if the word is in the language.
+
+\paragraph{}
+There should not be any major bugs in the program.  There is a suite of unit tests which can be 
+run on the code.  There is always the chance that the machine definition file passed in may 
+contain just the "right" configuration of symbols in it that the application may behave in 
+unpredictable ways.  However, I was sure to include exception handling for as many foreseeable 
+cases as I could.
+
+\end{document}
